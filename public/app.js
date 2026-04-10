@@ -1321,8 +1321,44 @@ function localStopReview() {
   renderAll();
 }
 
+function localPopLastReviewGhost() {
+  if (!state?.reviewMode) return;
+  if (!state.reviewGhostPegs || state.reviewGhostPegs.length === 0) return;
+
+  const removedPeg = state.reviewGhostPegs.pop();
+
+  state.reviewGhostLinks = (state.reviewGhostLinks || []).filter((link) => {
+    const touchesRemovedPeg =
+      (link.a.x === removedPeg.x && link.a.y === removedPeg.y) ||
+      (link.b.x === removedPeg.x && link.b.y === removedPeg.y);
+
+    return !touchesRemovedPeg;
+  });
+
+  if (state.reviewGhostPegs.length > 0) {
+    const lastGhost = state.reviewGhostPegs[state.reviewGhostPegs.length - 1];
+    state.reviewNextColor = lastGhost.color === 'red' ? 'blue' : 'red';
+  } else {
+    state.reviewNextColor = state.reviewSnapshot?.turn || 'red';
+  }
+}
+
 function localStepReview(delta) {
   if (!state?.reviewMode) return;
+  if (delta !== -1 && delta !== 1) return;
+
+  const hasGhosts = !!(state.reviewGhostPegs && state.reviewGhostPegs.length > 0);
+
+  if (delta === 1 && hasGhosts) {
+    return;
+  }
+
+  if (delta === -1 && hasGhosts) {
+    localPopLastReviewGhost();
+    renderAll();
+    return;
+  }
+
   state.reviewIndex = Math.max(0, Math.min(localTimeline.length - 1, state.reviewIndex + delta));
   state.reviewGhostPegs = [];
   state.reviewGhostLinks = [];
@@ -1505,9 +1541,22 @@ function toggleReviewMode() {
 function stepReview(delta) {
   resetPendingSurrenderConfirm();
   if (!state?.reviewMode) return;
+  if (delta !== -1 && delta !== 1) return;
+
+  const hasGhosts = !!(state.reviewGhostPegs && state.reviewGhostPegs.length > 0);
+
+  if (delta === 1 && hasGhosts) {
+    return;
+  }
 
   if (isLocalMode()) {
     localStepReview(delta);
+    return;
+  }
+
+  if (delta === -1 && hasGhosts) {
+    if (!roomId) return;
+    socket.emit('pop-review-ghost', { roomId });
     return;
   }
 
@@ -1646,13 +1695,14 @@ function updateReviewPanel() {
   const reviewMode = !!state?.reviewMode;
   const index = state?.reviewIndex ?? 0;
   const total = state?.reviewTotal ?? 0;
+  const hasGhosts = !!(state?.reviewGhostPegs && state.reviewGhostPegs.length > 0);
 
   reviewBtn.disabled = !canReview;
   reviewBtn.textContent = reviewMode ? '복기 종료' : '복기하기';
 
-  reviewPrevBtn.disabled = !reviewMode || index <= 0;
-  reviewNextBtn.disabled = !reviewMode || index >= total;
-  reviewResetGhostBtn.disabled = !reviewMode;
+  reviewPrevBtn.disabled = !reviewMode || (!hasGhosts && index <= 0);
+  reviewNextBtn.disabled = !reviewMode || hasGhosts || index >= total;
+  reviewResetGhostBtn.disabled = !reviewMode || !hasGhosts;
 
   reviewIndexEl.textContent = `${index} / ${total}`;
   reviewPanelEl.style.opacity = canReview ? '1' : '0.72';

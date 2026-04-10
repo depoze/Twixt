@@ -622,6 +622,24 @@ io.on('connection', (socket) => {
     emitState(roomId);
   });
 
+  socket.on('pop-review-ghost', ({ roomId }) => {
+    const room = rooms.get(roomId);
+    if (!room || !room.reviewMode) return;
+    if (!room.reviewGhostPegs || room.reviewGhostPegs.length === 0) return;
+
+    const removedPeg = room.reviewGhostPegs.pop();
+
+    room.reviewGhostLinks = (room.reviewGhostLinks || []).filter((link) => {
+      const touchesRemovedPeg =
+        (link.a.x === removedPeg.x && link.a.y === removedPeg.y) ||
+        (link.b.x === removedPeg.x && link.b.y === removedPeg.y);
+
+      return !touchesRemovedPeg;
+    });
+
+    emitState(roomId);
+  });
+
   socket.on('place-review-ghost', ({ roomId, x, y }) => {
     const room = rooms.get(roomId);
     if (!room || !room.reviewMode) return;
