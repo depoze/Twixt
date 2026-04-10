@@ -238,6 +238,10 @@ function ensureLayout() {
   boardContainerEl.style.maxWidth = '1080px';
   boardContainerEl.style.height = 'min(86vh, 1080px)';
   boardContainerEl.style.minHeight = '560px';
+  canvas.style.display = 'block';
+  canvas.style.width = '100%';
+  canvas.style.height = '100%';
+  canvas.style.margin = '0 auto';
 
   for (const child of originalChildren) {
     if (child === boardContainerEl) continue;
@@ -295,9 +299,11 @@ function applyResponsiveLayout() {
     leftColumn.style.minWidth = '320px';
     chatColumn.style.minWidth = '340px';
 
+    boardContainerEl.style.width = '100%';
     boardContainerEl.style.maxWidth = '1120px';
-    boardContainerEl.style.height = `min(${Math.max(760, height - 36)}px, 1120px)`;
-    boardContainerEl.style.minHeight = '720px';
+    boardContainerEl.style.height = 'auto';
+    boardContainerEl.style.aspectRatio = '1 / 1';
+    boardContainerEl.style.minHeight = '0';
   } else if (width >= 1500) {
     rootLayout.style.gridTemplateColumns = '300px 320px minmax(760px, 1fr)';
     rootLayout.style.columnGap = '18px';
@@ -305,9 +311,11 @@ function applyResponsiveLayout() {
     leftColumn.style.minWidth = '300px';
     chatColumn.style.minWidth = '320px';
 
+    boardContainerEl.style.width = '100%';
     boardContainerEl.style.maxWidth = '1000px';
-    boardContainerEl.style.height = `min(${Math.max(690, height - 36)}px, 1000px)`;
-    boardContainerEl.style.minHeight = '650px';
+    boardContainerEl.style.height = 'auto';
+    boardContainerEl.style.aspectRatio = '1 / 1';
+    boardContainerEl.style.minHeight = '0';
   } else if (width >= 1320) {
     rootLayout.style.gridTemplateColumns = '280px 290px minmax(640px, 1fr)';
     rootLayout.style.columnGap = '16px';
@@ -315,9 +323,11 @@ function applyResponsiveLayout() {
     leftColumn.style.minWidth = '280px';
     chatColumn.style.minWidth = '290px';
 
+    boardContainerEl.style.width = '100%';
     boardContainerEl.style.maxWidth = '880px';
-    boardContainerEl.style.height = `min(${Math.max(610, height - 40)}px, 880px)`;
-    boardContainerEl.style.minHeight = '580px';
+    boardContainerEl.style.height = 'auto';
+    boardContainerEl.style.aspectRatio = '1 / 1';
+    boardContainerEl.style.minHeight = '0';
   } else if (width >= 1120) {
     rootLayout.style.gridTemplateColumns = '260px 270px minmax(520px, 1fr)';
     rootLayout.style.columnGap = '14px';
@@ -325,9 +335,11 @@ function applyResponsiveLayout() {
     leftColumn.style.minWidth = '260px';
     chatColumn.style.minWidth = '270px';
 
+    boardContainerEl.style.width = '100%';
     boardContainerEl.style.maxWidth = '740px';
-    boardContainerEl.style.height = `min(${Math.max(520, height - 42)}px, 740px)`;
-    boardContainerEl.style.minHeight = '500px';
+    boardContainerEl.style.height = 'auto';
+    boardContainerEl.style.aspectRatio = '1 / 1';
+    boardContainerEl.style.minHeight = '0';
   } else {
     rootLayout.style.gridTemplateColumns = '1fr';
     rootLayout.style.columnGap = '0';
@@ -338,17 +350,77 @@ function applyResponsiveLayout() {
 
     leftColumn.style.order = '1';
     chatColumn.style.order = '2';
-    centerColumn.style.order = '3';
+    centerColumn.style.order = '4';
 
-    boardContainerEl.style.maxWidth = 'min(96vw, 760px)';
-    boardContainerEl.style.height = 'min(72vw, 72vh, 760px)';
+    boardContainerEl.style.width = 'min(98vw, 82vh, 860px)';
+    boardContainerEl.style.maxWidth = 'min(98vw, 82vh, 860px)';
+    boardContainerEl.style.height = 'min(98vw, 82vh, 860px)';
     boardContainerEl.style.minHeight = '320px';
+    boardContainerEl.style.margin = '0 auto';
+
+    centerColumn.style.justifyContent = 'center';
+    centerColumn.style.alignItems = 'flex-start';
 
     if (reviewPanelEl) {
-      reviewPanelEl.style.right = '6px';
-      reviewPanelEl.style.top = '10px';
-      reviewPanelEl.style.width = '170px';
+      if (reviewPanelEl.parentElement !== rootLayout) {
+        rootLayout.insertBefore(reviewPanelEl, centerColumn);
+      }
+
+      reviewPanelEl.style.order = '3';
+      reviewPanelEl.style.position = 'relative';
+      reviewPanelEl.style.right = 'auto';
+      reviewPanelEl.style.top = 'auto';
+      reviewPanelEl.style.left = 'auto';
+      reviewPanelEl.style.width = 'min(92vw, 760px)';
+      reviewPanelEl.style.margin = '0 auto';
+      reviewPanelEl.style.display = 'grid';
+      reviewPanelEl.style.gridTemplateColumns = '90px minmax(120px, 1fr) 150px 72px';
+      reviewPanelEl.style.alignItems = 'center';
+      reviewPanelEl.style.gap = '8px';
+      reviewPanelEl.style.padding = '10px 12px';
+      reviewPanelEl.style.boxSizing = 'border-box';
     }
+
+    const reviewArrowWrap = document.getElementById('reviewArrowWrap');
+    if (reviewArrowWrap) {
+    reviewArrowWrap.style.display = 'grid';
+    reviewArrowWrap.style.gridTemplateColumns = '1fr 1fr';
+    reviewArrowWrap.style.gap = '8px';
+    }
+
+    const reviewTitleBlock = document.getElementById('reviewTitleBlock');
+    if (reviewTitleBlock) {
+      reviewTitleBlock.style.display = 'flex';
+      reviewTitleBlock.style.flexDirection = 'column';
+      reviewTitleBlock.style.alignItems = 'flex-start';
+      reviewTitleBlock.style.justifyContent = 'center';
+      reviewTitleBlock.style.height = '100%';
+    }
+
+    const reviewTitleText = document.getElementById('reviewTitleText');
+    if (reviewTitleText) {
+      reviewTitleText.style.fontSize = '16px';
+      reviewTitleText.style.margin = '0';
+      reviewTitleText.style.lineHeight = '1.1';
+    }
+
+    if (reviewIndexEl) {
+      reviewIndexEl.style.textAlign = 'left';
+      reviewIndexEl.style.fontSize = '14px';
+      reviewIndexEl.style.marginTop = '6px';
+      reviewIndexEl.style.alignSelf = 'start';
+    }
+
+    if (reviewBtn) reviewBtn.style.height = '44px';
+    if (reviewPrevBtn) {
+      reviewPrevBtn.style.height = '44px';
+      reviewPrevBtn.style.width = '100%';
+    }
+    if (reviewNextBtn) {
+      reviewNextBtn.style.height = '44px';
+      reviewNextBtn.style.width = '100%';
+    }
+    if (reviewResetGhostBtn) reviewResetGhostBtn.style.height = '44px';
 
     if (chatWrapEl) {
       chatWrapEl.style.height = '380px';
@@ -366,9 +438,48 @@ function applyResponsiveLayout() {
   centerColumn.style.order = '3';
 
   if (reviewPanelEl) {
+    if (reviewPanelEl.parentElement !== boardContainerEl) {
+      boardContainerEl.appendChild(reviewPanelEl);
+    }
+
+    reviewPanelEl.style.order = '';
+    reviewPanelEl.style.position = 'absolute';
     reviewPanelEl.style.right = '-240px';
     reviewPanelEl.style.top = '14px';
+    reviewPanelEl.style.left = 'auto';
     reviewPanelEl.style.width = '180px';
+    reviewPanelEl.style.margin = '0';
+    reviewPanelEl.style.display = 'flex';
+    reviewPanelEl.style.flexDirection = 'column';
+    reviewPanelEl.style.gridTemplateColumns = 'none';
+    reviewPanelEl.style.alignItems = 'stretch';
+    reviewPanelEl.style.gap = '10px';
+    reviewPanelEl.style.padding = '14px';
+    reviewPanelEl.style.boxSizing = 'border-box';
+  }
+
+  const reviewTitleBlock = document.getElementById('reviewTitleBlock');
+  if (reviewTitleBlock) {
+    reviewTitleBlock.style.display = 'flex';
+    reviewTitleBlock.style.flexDirection = 'column';
+    reviewTitleBlock.style.alignItems = 'flex-start';
+  }
+
+  const reviewTitleText = document.getElementById('reviewTitleText');
+  if (reviewTitleText) {
+    reviewTitleText.style.fontSize = '18px';
+  }
+
+  if (reviewIndexEl) {
+    reviewIndexEl.style.textAlign = 'left';
+    reviewIndexEl.style.fontSize = '13px';
+    reviewIndexEl.style.marginTop = '6px';
+  }
+
+  const reviewArrowWrap = document.getElementById('reviewArrowWrap');
+  if (reviewArrowWrap) {
+    reviewArrowWrap.style.display = 'flex';
+    reviewArrowWrap.style.gap = '8px';
   }
 
   if (chatWrapEl) {
@@ -596,15 +707,17 @@ function ensureReviewUI() {
   reviewPanelEl.style.gap = '10px';
 
   reviewPanelEl.innerHTML = `
-    <div style="color:#ffffff; font-size:18px; font-weight:800; margin-bottom:2px;">복기</div>
-    <button id="reviewBtn">복기하기</button>
-    <div style="display:flex; gap:8px;">
-      <button id="reviewPrevBtn" style="flex:1;">←</button>
-      <button id="reviewNextBtn" style="flex:1;">→</button>
-    </div>
-    <button id="reviewResetGhostBtn">초기화</button>
-    <div id="reviewIndexEl" style="color:#d7def0; font-size:13px; text-align:center;">0 / 0</div>
-  `;
+  <div id="reviewTitleBlock" style="display:flex; flex-direction:column; align-items:flex-start; justify-content:center;">
+    <div id="reviewTitleText" style="color:#ffffff; font-size:18px; font-weight:800; line-height:1.1;">복기</div>
+    <div id="reviewIndexEl" style="color:#d7def0; font-size:13px; text-align:left; margin-top:6px;">0 / 0</div>
+  </div>
+  <button id="reviewBtn">복기하기</button>
+  <div id="reviewArrowWrap" style="display:flex; gap:8px;">
+    <button id="reviewPrevBtn" style="flex:1;">←</button>
+    <button id="reviewNextBtn" style="flex:1;">→</button>
+  </div>
+  <button id="reviewResetGhostBtn">초기화</button>
+`;
 
   boardContainerEl.appendChild(reviewPanelEl);
 
@@ -624,6 +737,7 @@ function ensureReviewUI() {
     btn.style.background = '#d9e1f2';
     btn.style.color = '#1f2430';
     btn.style.boxSizing = 'border-box';
+    btn.style.width = '100%';
   }
 
   reviewBtn.addEventListener('click', toggleReviewMode);
