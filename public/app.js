@@ -1,3 +1,4 @@
+console.log("PUBLIC APP JS LOADED v999");
 const socket = io();
 
 const BOARD_SIZE = 24;
