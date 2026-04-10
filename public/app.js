@@ -1,5 +1,9 @@
-console.log("PUBLIC APP JS LOADED v999");
-const socket = io();
+const socket = io({
+  transports: ['websocket'],
+  reconnection: true,
+  reconnectionAttempts: 10,
+  timeout: 20000,
+});
 
 const BOARD_SIZE = 24;
 
