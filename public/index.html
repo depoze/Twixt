@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Twixt Multiplayer</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <h1>Twixt</h1>
+
+      <div class="card">
+        <label for="nameInput">이름</label>
+        <input id="nameInput" placeholder="플레이어 이름" />
+
+        <label for="roomInput">방 코드</label>
+        <input id="roomInput" placeholder="예: room1" value="room1" />
+
+        <button id="joinBtn">방 참가</button>
+      </div>
+
+      <div class="card">
+        <div><strong>내 역할:</strong> <span id="myRole">-</span></div>
+        <div><strong>턴:</strong> <span id="turnText">-</span></div>
+        <div><strong>상태:</strong> <span id="statusText">방에 접속해 주세요</span></div>
+      </div>
+
+      <div class="card">
+        <div class="player-row red-row">
+          Red (상하 연결): <span id="redPlayer">대기 중</span>
+        </div>
+        <div class="player-row blue-row">
+          Blue (좌우 연결): <span id="bluePlayer">대기 중</span>
+        </div>
+      </div>
+
+      <div class="card buttons">
+        <button id="swapBtn" disabled>파이 룰: 진영 교체</button>
+        <button id="restartBtn" disabled>다시 시작</button>
+      </div>
+    </aside>
+
+    <main class="board-wrap">
+      <canvas id="board" width="900" height="900"></canvas>
+    </main>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
