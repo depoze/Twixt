@@ -1,8 +1,9 @@
 const socket = io({
   transports: ['websocket'],
   reconnection: true,
-  reconnectionAttempts: 10,
-  timeout: 20000,
+  reconnectionAttempts: Infinity,
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000
 });
 
 const BOARD_SIZE = 24;

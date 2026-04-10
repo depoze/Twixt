@@ -8,7 +8,11 @@ const MAX_CHAT_MESSAGES = 100;
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  transports: ['websocket'],
+  pingInterval: 25000,
+  pingTimeout: 20000
+});
 
 app.use((req, res, next) => {
   if (
