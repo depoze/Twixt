@@ -35,18 +35,19 @@ const bluePlayerEl = document.getElementById('bluePlayer');
 const swapBtn = document.getElementById('swapBtn');
 const restartBtn = document.getElementById('restartBtn');
 
-swapBtn.textContent = '진영 교체';
+let localModeBtn = document.getElementById('localModeBtn');
 
-swapBtn.addEventListener('click', () => {
-  if (!state) return;
+localModeBtn.addEventListener('click', () => {
+  if (currentMode === 'online') {
+    if (!state?.players?.red || !state?.players?.blue) return;
+    if (state.moveCount > 0) return;
+    socket.emit('swap-teams', { roomId });
+    return;
+  }
 
-  if (!state.players?.red || !state.players?.blue) return;
-  if (state.moveCount > 0) return;
-
-  socket.emit('swap-teams', { roomId });
+  beginLocalMode();
 });
 
-let localModeBtn = document.getElementById('localModeBtn');
 if (!localModeBtn) {
   localModeBtn = document.createElement('button');
   localModeBtn.id = 'localModeBtn';
@@ -55,6 +56,7 @@ if (!localModeBtn) {
   localModeBtn.style.display = 'block';
   localModeBtn.style.marginTop = '8px';
 }
+
 
 let surrenderBtn = document.getElementById('surrenderBtn');
 if (!surrenderBtn) {
@@ -1485,6 +1487,15 @@ joinBtn.addEventListener('click', () => {
 });
 
 localModeBtn.addEventListener('click', () => {
+  if (currentMode === 'online') {
+    if (!state?.players?.red || !state?.players?.blue) return;
+    if (state.moveCount > 0) return;
+    if (state.winner || state.reviewMode) return;
+
+    socket.emit('swap-teams', { roomId });
+    return;
+  }
+
   if (hasJoined) return;
   beginLocalMode();
 });
@@ -1868,6 +1879,22 @@ function updatePanel() {
     state.moveCount === 0;
 
   swapBtn.disabled = !canSwap;
+
+  if (currentMode === 'online') {
+    localModeBtn.textContent = '진영 교체';
+
+    const canSwapTeams =
+      state?.players?.red &&
+      state?.players?.blue &&
+      state.moveCount === 0 &&
+      !state.winner &&
+      !state.reviewMode;
+
+    localModeBtn.disabled = !canSwapTeams;
+  } else {
+    localModeBtn.textContent = '로컬 모드';
+    localModeBtn.disabled = currentMode !== 'none';
+  }
 } else {
   swapBtn.style.display = 'none';
 }
