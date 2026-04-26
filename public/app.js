@@ -1876,34 +1876,22 @@ function updatePanel() {
   }
 
   updateReviewPanel();
-  if (currentMode === 'online') {
-  swapBtn.style.display = 'block';
+  if (isOnlineMode()) {
+  localModeBtn.textContent = '진영 교체';
 
-  const canSwap =
-    state &&
-    state.players?.red &&
-    state.players?.blue &&
-    state.moveCount === 0;
+  const canSwapTeams =
+    !!state.players.red &&
+    !!state.players.blue &&
+    state.moveCount === 0 &&
+    !state.winner &&
+    !state.reviewMode &&
+    myRole !== 'spectator' &&
+    myRole !== 'none';
 
-  swapBtn.disabled = !canSwap;
-
-  if (currentMode === 'online') {
-    localModeBtn.textContent = '진영 교체';
-
-    const canSwapTeams =
-      state?.players?.red &&
-      state?.players?.blue &&
-      state.moveCount === 0 &&
-      !state.winner &&
-      !state.reviewMode;
-
-    localModeBtn.disabled = !canSwapTeams;
-  } else {
-    localModeBtn.textContent = '로컬 모드';
-    localModeBtn.disabled = currentMode !== 'none';
-  }
+  localModeBtn.disabled = !canSwapTeams;
 } else {
-  swapBtn.style.display = 'none';
+  localModeBtn.textContent = '로컬 모드';
+  localModeBtn.disabled = hasJoined;
 }
 
 }
