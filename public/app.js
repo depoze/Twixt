@@ -1,9 +1,23 @@
 const socket = io({
-  transports: ['websocket'],
+  transports: ["websocket"],
+  upgrade: false,
   reconnection: true,
   reconnectionAttempts: Infinity,
-  reconnectionDelay: 1000,
-  reconnectionDelayMax: 5000
+  reconnectionDelay: 500,
+});
+
+
+
+socket.on("connect", () => {
+  console.log("socket connected:", socket.id);
+});
+
+socket.on("disconnect", (reason) => {
+  console.log("socket disconnected:", reason);
+});
+
+socket.on("connect_error", (err) => {
+  console.log("socket connect_error:", err.message);
 });
 
 const BOARD_SIZE = 24;
@@ -20,6 +34,17 @@ const redPlayerEl = document.getElementById('redPlayer');
 const bluePlayerEl = document.getElementById('bluePlayer');
 const swapBtn = document.getElementById('swapBtn');
 const restartBtn = document.getElementById('restartBtn');
+
+swapBtn.textContent = '진영 교체';
+
+swapBtn.addEventListener('click', () => {
+  if (!state) return;
+
+  if (!state.players?.red || !state.players?.blue) return;
+  if (state.moveCount > 0) return;
+
+  socket.emit('swap-teams', { roomId });
+});
 
 let localModeBtn = document.getElementById('localModeBtn');
 if (!localModeBtn) {
@@ -1833,6 +1858,20 @@ function updatePanel() {
   }
 
   updateReviewPanel();
+  if (currentMode === 'online') {
+  swapBtn.style.display = 'block';
+
+  const canSwap =
+    state &&
+    state.players?.red &&
+    state.players?.blue &&
+    state.moveCount === 0;
+
+  swapBtn.disabled = !canSwap;
+} else {
+  swapBtn.style.display = 'none';
+}
+
 }
 
 ensureLayout();
