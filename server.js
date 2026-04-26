@@ -691,30 +691,32 @@ io.on('connection', (socket) => {
     emitState(roomId);
   });
 
-  socket.on('disconnect', () => {
-    removeSocketFromRooms(socket.id);
-  });
-  
   socket.on('swap-teams', ({ roomId }) => {
   const room = rooms.get(roomId);
   if (!room) return;
 
-  // 두 명 다 있어야 하고, 돌 없어야 함
   if (!room.players.red || !room.players.blue) return;
-  if (room.moveCount > 0) return;
+  if (room.moveCount !== 0) return;
+  if (room.winner || room.reviewMode) return;
+
+  const role = room.sockets[socket.id];
+  if (role !== 'red' && role !== 'blue') return;
 
   const redPlayer = room.players.red;
   const bluePlayer = room.players.blue;
 
-  // 플레이어 교체
   room.players.red = bluePlayer;
   room.players.blue = redPlayer;
 
-  // socket 역할도 바꿔야 함 (핵심)
   room.sockets[redPlayer.socketId] = 'blue';
   room.sockets[bluePlayer.socketId] = 'red';
 
+  clearPendingRequests(room);
   emitState(roomId);
+});
+
+socket.on('disconnect', () => {
+  removeSocketFromRooms(socket.id);
 });
 
 });

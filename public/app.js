@@ -36,18 +36,6 @@ const swapBtn = document.getElementById('swapBtn');
 const restartBtn = document.getElementById('restartBtn');
 
 let localModeBtn = document.getElementById('localModeBtn');
-
-localModeBtn.addEventListener('click', () => {
-  if (currentMode === 'online') {
-    if (!state?.players?.red || !state?.players?.blue) return;
-    if (state.moveCount > 0) return;
-    socket.emit('swap-teams', { roomId });
-    return;
-  }
-
-  beginLocalMode();
-});
-
 if (!localModeBtn) {
   localModeBtn = document.createElement('button');
   localModeBtn.id = 'localModeBtn';
@@ -1487,9 +1475,12 @@ joinBtn.addEventListener('click', () => {
 });
 
 localModeBtn.addEventListener('click', () => {
-  if (currentMode === 'online') {
+  resetPendingSurrenderConfirm();
+
+  if (isOnlineMode()) {
+    if (!roomId) return;
     if (!state?.players?.red || !state?.players?.blue) return;
-    if (state.moveCount > 0) return;
+    if (state.moveCount !== 0) return;
     if (state.winner || state.reviewMode) return;
 
     socket.emit('swap-teams', { roomId });
@@ -1630,7 +1621,6 @@ socket.on('joined', ({ role, state: roomState }) => {
   joinBtn.disabled = true;
   roomInput.disabled = true;
   nameInput.disabled = true;
-  localModeBtn.disabled = true;
 
   if (chatInputEl && chatSendBtn) {
     chatInputEl.disabled = false;
@@ -1792,6 +1782,23 @@ function updatePanel() {
     isOnlineMode()
       ? !!state.players.red && !!state.players.blue && myRole !== 'spectator' && myRole !== 'none' && !state.reviewMode
       : canLocalAct;
+  if (isOnlineMode()) {
+  localModeBtn.textContent = '진영 교체';
+
+  const canSwapTeams =
+    !!state.players.red &&
+    !!state.players.blue &&
+    state.moveCount === 0 &&
+    !state.winner &&
+    !state.reviewMode &&
+    myRole !== 'spectator' &&
+    myRole !== 'none';
+
+  localModeBtn.disabled = !canSwapTeams;
+} else {
+  localModeBtn.textContent = '로컬 모드';
+  localModeBtn.disabled = hasJoined;
+}
 
   if (isLocalMode()) {
     swapBtn.disabled = !(state.canSwap && state.moveCount === 1);
