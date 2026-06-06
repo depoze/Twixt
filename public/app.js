@@ -4,20 +4,8 @@ const socket = io({
   reconnection: true,
   reconnectionAttempts: Infinity,
   reconnectionDelay: 500,
-});
-
-
-
-socket.on("connect", () => {
-  console.log("socket connected:", socket.id);
-});
-
-socket.on("disconnect", (reason) => {
-  console.log("socket disconnected:", reason);
-});
-
-socket.on("connect_error", (err) => {
-  console.log("socket connect_error:", err.message);
+  reconnectionDelayMax: 5000,
+  randomizationFactor: 0.5,
 });
 
 const BOARD_SIZE = 24;
@@ -110,6 +98,11 @@ let state = null;
 let hasJoined = false;
 let currentMode = 'none'; // none | online | local
 let pendingSurrenderConfirm = false;
+let onlineSessionReady = false;
+const onlineSessionId =
+  sessionStorage.getItem('twixtSessionId') ||
+  (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+sessionStorage.setItem('twixtSessionId', onlineSessionId);
 
 let leftColumn = null;
 let centerColumn = null;
@@ -1143,6 +1136,15 @@ function isLocalMode() {
   return currentMode === 'local';
 }
 
+function joinOnlineRoom() {
+  if (!roomId) return;
+  socket.emit('join-room', {
+    roomId,
+    name: nameInput.value.trim() || 'Player',
+    sessionId: onlineSessionId,
+  });
+}
+
 function refreshLocalDerivedState() {
   if (!state) return;
   state.canUndo = localHistory.length > 0;
@@ -1459,6 +1461,7 @@ canvas.addEventListener('click', (e) => {
   }
 
   if (!roomId) return;
+  if (!onlineSessionReady) return;
   if (myRole === 'spectator' || myRole === 'none') return;
   if (!state.players.red || !state.players.blue) return;
   if (state.winner) return;
@@ -1471,7 +1474,8 @@ joinBtn.addEventListener('click', () => {
   if (hasJoined) return;
   currentMode = 'online';
   roomId = roomInput.value.trim() || 'room1';
-  socket.emit('join-room', { roomId, name: nameInput.value.trim() || 'Player' });
+  onlineSessionReady = false;
+  joinOnlineRoom();
 });
 
 localModeBtn.addEventListener('click', () => {
@@ -1604,18 +1608,42 @@ function resetReviewGhost() {
 }
 
 function sendChat() {
-  if (!roomId || !chatInputEl || !isOnlineMode()) return;
+  if (!roomId || !chatInputEl || !isOnlineMode() || !onlineSessionReady) return;
   const text = chatInputEl.value.trim();
   if (!text) return;
   socket.emit('send-chat', { roomId, text });
   chatInputEl.value = '';
 }
 
+socket.on("connect", () => {
+  console.log("socket connected:", socket.id);
+
+  if (isOnlineMode() && hasJoined && roomId) {
+    onlineSessionReady = false;
+    renderAll();
+    joinOnlineRoom();
+  }
+});
+
+socket.on("disconnect", (reason) => {
+  console.log("socket disconnected:", reason);
+  onlineSessionReady = false;
+  resetPendingSurrenderConfirm();
+  if (isOnlineMode() && state) renderAll();
+});
+
+socket.on("connect_error", (err) => {
+  console.log("socket connect_error:", err.message);
+  onlineSessionReady = false;
+  if (isOnlineMode() && state) renderAll();
+});
+
 socket.on('joined', ({ role, state: roomState }) => {
   currentMode = 'online';
   myRole = role;
   state = roomState;
   hasJoined = true;
+  onlineSessionReady = true;
   resetPendingSurrenderConfirm();
 
   joinBtn.disabled = true;
@@ -1780,7 +1808,7 @@ function updatePanel() {
   const canLocalAct = isLocalMode() && !state.winner && !state.reviewMode;
   const canRequestSharedAction =
     isOnlineMode()
-      ? !!state.players.red && !!state.players.blue && myRole !== 'spectator' && myRole !== 'none' && !state.reviewMode
+      ? onlineSessionReady && !!state.players.red && !!state.players.blue && myRole !== 'spectator' && myRole !== 'none' && !state.reviewMode
       : canLocalAct;
   if (isOnlineMode()) {
   localModeBtn.textContent = '진영 교체';
@@ -1810,6 +1838,7 @@ function updatePanel() {
     undoBtn.disabled = !canRequestSharedAction || !state.canUndo;
     restartBtn.disabled = !canRequestSharedAction;
     const canPlayNow =
+      onlineSessionReady &&
       !!state.players.red &&
       !!state.players.blue &&
       myRole !== 'spectator' &&
@@ -1860,6 +1889,10 @@ function updatePanel() {
     statusTextEl.textContent = `${state.winner.toUpperCase()} 승리`;
     statusTextEl.style.fontWeight = '800';
     statusTextEl.style.color = state.winner === 'red' ? COLORS.redActive : COLORS.blueActive;
+  } else if (isOnlineMode() && !onlineSessionReady) {
+    statusTextEl.textContent = '서버 연결을 복구하는 중...';
+    statusTextEl.style.fontWeight = '700';
+    statusTextEl.style.color = '#d89b24';
   } else if (isLocalMode()){
     statusTextEl.style.fontWeight = '400';
     statusTextEl.style.color = '';
@@ -1876,6 +1909,10 @@ function updatePanel() {
   }
 
   updateReviewPanel();
+  if (chatInputEl && chatSendBtn && isOnlineMode()) {
+    chatInputEl.disabled = !onlineSessionReady;
+    chatSendBtn.disabled = !onlineSessionReady;
+  }
   if (isOnlineMode()) {
   localModeBtn.textContent = '진영 교체';
 

@@ -5,6 +5,7 @@ const path = require('path');
 
 const BOARD_SIZE = 24;
 const MAX_CHAT_MESSAGES = 100;
+const RECONNECT_GRACE_MS = 2 * 60 * 1000;
 
 const app = express();
 const server = http.createServer(app);
@@ -33,6 +34,7 @@ app.get('/', (req, res) => {
 });
 
 const rooms = new Map();
+const disconnectTimers = new Map();
 
 function deepCopy(value) {
   return JSON.parse(JSON.stringify(value));
@@ -318,25 +320,57 @@ function autoAddReviewGhostLinks(room, newPeg) {
   }
 }
 
-function assignColor(room, socket, requestedName) {
+function getDisconnectTimerKey(roomId, sessionId) {
+  return `${roomId}:${sessionId}`;
+}
+
+function cancelDisconnectTimer(roomId, sessionId) {
+  const key = getDisconnectTimerKey(roomId, sessionId);
+  const timer = disconnectTimers.get(key);
+  if (timer) clearTimeout(timer);
+  disconnectTimers.delete(key);
+}
+
+function normalizeSessionId(value) {
+  return String(value || '').trim().slice(0, 80);
+}
+
+function assignColor(room, socket, requestedName, requestedSessionId) {
   const name = requestedName?.trim() || 'Player';
+  const sessionId = normalizeSessionId(requestedSessionId);
+
+  if (sessionId) {
+    for (const color of ['red', 'blue']) {
+      const player = room.players[color];
+      if (player?.sessionId !== sessionId) continue;
+
+      cancelDisconnectTimer(room.roomId, sessionId);
+      if (player.socketId) delete room.sockets[player.socketId];
+      player.socketId = socket.id;
+      player.connected = true;
+      room.sockets[socket.id] = color;
+      room.started = !!(room.players.red && room.players.blue);
+      return color;
+    }
+  }
+
   const taken = new Set(Object.keys(room.players));
 
   if (!taken.has('red')) {
-    room.players.red = { name, socketId: socket.id };
+    room.players.red = { name, socketId: socket.id, sessionId, connected: true };
     room.sockets[socket.id] = 'red';
     room.started = !!room.players.blue;
     return 'red';
   }
 
   if (!taken.has('blue')) {
-    room.players.blue = { name, socketId: socket.id };
+    room.players.blue = { name, socketId: socket.id, sessionId, connected: true };
     room.sockets[socket.id] = 'blue';
     room.started = true;
     return 'blue';
   }
 
-  room.spectators.push({ name, socketId: socket.id });
+  room.spectators.push({ name, socketId: socket.id, sessionId });
   room.sockets[socket.id] = 'spectator';
   return 'spectator';
 }
@@ -351,7 +385,7 @@ function cleanupEmptyRoom(roomId) {
   if (!hasPlayers && !hasSpectators) rooms.delete(roomId);
 }
 
-function removeSocketFromRooms(socketId) {
+function removeSocketFromRooms(socketId, preservePlayer = false) {
   for (const [roomId, room] of rooms.entries()) {
     const role = room.sockets[socketId];
     if (!role) continue;
@@ -359,9 +393,34 @@ function removeSocketFromRooms(socketId) {
     delete room.sockets[socketId];
 
     if (role === 'red' || role === 'blue') {
-      delete room.players[role];
-      room.started = !!(room.players.red && room.players.blue);
-      clearPendingRequests(room);
+      const player = room.players[role];
+
+      if (preservePlayer && player?.socketId === socketId && player.sessionId) {
+        player.socketId = null;
+        player.connected = false;
+        cancelDisconnectTimer(roomId, player.sessionId);
+
+        const timerKey = getDisconnectTimerKey(roomId, player.sessionId);
+        const timer = setTimeout(() => {
+          disconnectTimers.delete(timerKey);
+          const currentRoom = rooms.get(roomId);
+          const currentPlayer = currentRoom?.players[role];
+          if (!currentRoom || currentPlayer?.sessionId !== player.sessionId || currentPlayer.connected) return;
+
+          delete currentRoom.players[role];
+          currentRoom.started = !!(currentRoom.players.red && currentRoom.players.blue);
+          clearPendingRequests(currentRoom);
+          emitState(roomId);
+          cleanupEmptyRoom(roomId);
+        }, RECONNECT_GRACE_MS);
+
+        disconnectTimers.set(timerKey, timer);
+      } else if (player?.socketId === socketId) {
+        if (player.sessionId) cancelDisconnectTimer(roomId, player.sessionId);
+        delete room.players[role];
+        room.started = !!(room.players.red && room.players.blue);
+        clearPendingRequests(room);
+      }
     } else {
       room.spectators = room.spectators.filter((s) => s.socketId !== socketId);
     }
@@ -373,11 +432,21 @@ function removeSocketFromRooms(socketId) {
 
 function roomStateForClient(room) {
   const reviewSnapshot = room.reviewMode ? getReviewSnapshot(room) : null;
+  const players = Object.fromEntries(
+    Object.entries(room.players).map(([color, player]) => [
+      color,
+      {
+        name: player.name,
+        socketId: player.socketId,
+        connected: player.connected !== false,
+      },
+    ])
+  );
 
   return {
     roomId: room.roomId,
     boardSize: room.boardSize,
-    players: room.players,
+    players,
     turn: room.turn,
     winner: room.winner,
     pegs: room.pegs,
@@ -414,7 +483,7 @@ function getDisplayName(room, socketId) {
 }
 
 io.on('connection', (socket) => {
-  socket.on('join-room', ({ roomId, name }) => {
+  socket.on('join-room', ({ roomId, name, sessionId }) => {
     roomId = (roomId || 'default').trim().slice(0, 24) || 'default';
 
     removeSocketFromRooms(socket.id);
@@ -422,7 +491,7 @@ io.on('connection', (socket) => {
     const room = getRoom(roomId);
     socket.join(roomId);
 
-    const role = assignColor(room, socket, name);
+    const role = assignColor(room, socket, name, sessionId);
 
     socket.emit('joined', {
       role,
@@ -716,7 +785,7 @@ io.on('connection', (socket) => {
 });
 
 socket.on('disconnect', () => {
-  removeSocketFromRooms(socket.id);
+  removeSocketFromRooms(socket.id, true);
 });
 
 });
