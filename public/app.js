@@ -612,7 +612,7 @@ function applyPanelCollapseLayout() {
   undoBtn.style.whiteSpace = 'nowrap';
   if (sidebar) {
     sidebar.style.display = 'grid';
-    sidebar.style.gridTemplateColumns = '120px minmax(170px, 1fr)';
+    sidebar.style.gridTemplateColumns = '1fr';
     sidebar.style.gap = '8px';
     sidebar.style.alignItems = 'center';
     sidebar.style.padding = '8px 56px 8px 8px';
