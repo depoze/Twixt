@@ -6,6 +6,7 @@ const path = require('path');
 const BOARD_SIZE = 24;
 const MAX_CHAT_MESSAGES = 100;
 const RECONNECT_GRACE_MS = 2 * 60 * 1000;
+const MAX_TURN_TIME_MS = 10 * 60 * 1000 + 50 * 1000;
 
 const app = express();
 const server = http.createServer(app);
@@ -82,7 +83,72 @@ function createRoom(roomId) {
     pendingUndoBy: null,
     pendingRestartBy: null,
     chatMessages: [],
+    timerDurationMs: 0,
+    turnDeadline: null,
+    turnTimer: null,
   };
+}
+
+function clearTurnTimer(room) {
+  if (room.turnTimer) clearTimeout(room.turnTimer);
+  room.turnTimer = null;
+  room.turnDeadline = null;
+}
+
+function getLegalMoves(room, color, endLineOnly = false) {
+  const moves = [];
+  for (let y = 0; y < BOARD_SIZE; y += 1) {
+    for (let x = 0; x < BOARD_SIZE; x += 1) {
+      if (endLineOnly && ((color === 'red' && y !== BOARD_SIZE - 1) || (color === 'blue' && x !== BOARD_SIZE - 1))) continue;
+      if (isCorner(x, y) || pegAt(room, x, y) || isInOpponentBorder(color, x, y)) continue;
+      moves.push({ x, y });
+    }
+  }
+  return moves;
+}
+
+function applyMove(room, x, y, color) {
+  room.history.push(cloneState(room));
+  clearPendingRequests(room);
+  resetReview(room);
+
+  const peg = { x, y, color };
+  room.pegs.push(peg);
+  autoAddLinks(room, peg);
+  room.moveCount += 1;
+  room.canSwap = room.moveCount === 1;
+  room.lastMove = { x, y, color };
+
+  if (hasWinningPath(room, color)) {
+    room.winner = color;
+  } else {
+    room.turn = color === 'red' ? 'blue' : 'red';
+  }
+  pushTimeline(room);
+}
+
+function startTurnTimer(room) {
+  clearTurnTimer(room);
+  if (!room.timerDurationMs || room.moveCount === 0 || room.winner || room.reviewMode || !room.players.red || !room.players.blue) return;
+
+  room.turnDeadline = Date.now() + room.timerDurationMs;
+  room.turnTimer = setTimeout(() => {
+    const currentRoom = rooms.get(room.roomId);
+    if (!currentRoom || currentRoom !== room || currentRoom.winner || currentRoom.reviewMode) return;
+
+    const color = currentRoom.turn;
+    let moves = getLegalMoves(currentRoom, color, true);
+    if (moves.length === 0) moves = getLegalMoves(currentRoom, color, false);
+    if (moves.length === 0) {
+      clearTurnTimer(currentRoom);
+      return;
+    }
+
+    const move = moves[Math.floor(Math.random() * moves.length)];
+    applyMove(currentRoom, move.x, move.y, color);
+    startTurnTimer(currentRoom);
+    emitState(currentRoom.roomId);
+  }, room.timerDurationMs);
 }
 
 function cloneState(room) {
@@ -409,6 +475,7 @@ function removeSocketFromRooms(socketId, preservePlayer = false) {
 
           delete currentRoom.players[role];
           currentRoom.started = !!(currentRoom.players.red && currentRoom.players.blue);
+          clearTurnTimer(currentRoom);
           clearPendingRequests(currentRoom);
           emitState(roomId);
           cleanupEmptyRoom(roomId);
@@ -419,6 +486,7 @@ function removeSocketFromRooms(socketId, preservePlayer = false) {
         if (player.sessionId) cancelDisconnectTimer(roomId, player.sessionId);
         delete room.players[role];
         room.started = !!(room.players.red && room.players.blue);
+        clearTurnTimer(room);
         clearPendingRequests(room);
       }
     } else {
@@ -466,6 +534,8 @@ function roomStateForClient(room) {
     reviewGhostPegs: room.reviewGhostPegs,
     reviewGhostLinks: room.reviewGhostLinks,
     reviewNextColor: room.reviewMode ? getNextReviewColor(room) : null,
+    timerDurationMs: room.timerDurationMs,
+    turnDeadline: room.turnDeadline,
   };
 }
 
@@ -516,24 +586,24 @@ io.on('connection', (socket) => {
     if (pegAt(room, x, y)) return;
     if (isInOpponentBorder(color, x, y)) return;
 
-    room.history.push(cloneState(room));
-    clearPendingRequests(room);
-    resetReview(room);
+    applyMove(room, x, y, color);
+    startTurnTimer(room);
+    emitState(roomId);
+  });
 
-    const peg = { x, y, color };
-    room.pegs.push(peg);
-    autoAddLinks(room, peg);
-    room.moveCount += 1;
-    room.canSwap = room.moveCount === 1;
-    room.lastMove = { x, y, color };
+  socket.on('set-turn-timer', ({ roomId, minutes, seconds }) => {
+    const room = rooms.get(roomId);
+    if (!room || room.moveCount !== 0 || room.winner) return;
+    const role = room.sockets[socket.id];
+    if (role !== 'red' && role !== 'blue') return;
 
-    if (hasWinningPath(room, color)) {
-      room.winner = color;
-    } else {
-      room.turn = color === 'red' ? 'blue' : 'red';
-    }
+    const safeMinutes = Number(minutes);
+    const safeSeconds = Number(seconds);
+    if (!Number.isInteger(safeMinutes) || safeMinutes < 0 || safeMinutes > 10) return;
+    if (![0, 10, 20, 30, 40, 50].includes(safeSeconds)) return;
 
-    pushTimeline(room);
+    room.timerDurationMs = Math.min(MAX_TURN_TIME_MS, (safeMinutes * 60 + safeSeconds) * 1000);
+    startTurnTimer(room);
     emitState(roomId);
   });
 
@@ -569,6 +639,7 @@ io.on('connection', (socket) => {
     room.canSwap = false;
 
     pushTimeline(room);
+    startTurnTimer(room);
     emitState(roomId);
   });
 
@@ -585,6 +656,7 @@ io.on('connection', (socket) => {
     resetReview(room);
 
     room.winner = role === 'red' ? 'blue' : 'red';
+    clearTurnTimer(room);
     pushTimeline(room);
     emitState(roomId);
   });
@@ -611,6 +683,7 @@ io.on('connection', (socket) => {
     restoreSnapshot(room, snapshot);
     clearPendingRequests(room);
     resetReview(room);
+    startTurnTimer(room);
 
     if (room.timeline.length > 1) {
       room.timeline.pop();
@@ -642,6 +715,8 @@ io.on('connection', (socket) => {
     const oldSockets = room.sockets;
     const oldSpectators = room.spectators;
     const oldChatMessages = room.chatMessages;
+    const oldTimerDurationMs = room.timerDurationMs;
+    clearTurnTimer(room);
 
     rooms.set(roomId, {
       ...createRoom(roomId),
@@ -650,8 +725,10 @@ io.on('connection', (socket) => {
       spectators: oldSpectators,
       started: !!(oldPlayers.red && oldPlayers.blue),
       chatMessages: oldChatMessages,
+      timerDurationMs: oldTimerDurationMs,
     });
 
+    startTurnTimer(rooms.get(roomId));
     emitState(roomId);
   });
 
@@ -781,6 +858,7 @@ io.on('connection', (socket) => {
   room.sockets[bluePlayer.socketId] = 'red';
 
   clearPendingRequests(room);
+  startTurnTimer(room);
   emitState(roomId);
 });
 

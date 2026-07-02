@@ -4,40 +4,49 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Twixt</title>
-  <link rel="stylesheet" href="styles.css?v=20" />
+  <link rel="stylesheet" href="styles.css?v=21" />
 </head>
 <body>
-  <div class="app">
+  <section id="joinScreen" class="join-screen">
+    <div class="join-card">
+      <h1>Twixt</h1>
+      <label for="nameInput">이름</label>
+      <input id="nameInput" placeholder="플레이어 이름" autocomplete="nickname" />
+      <label for="roomInput">방 코드</label>
+      <input id="roomInput" placeholder="예: room1" value="room1" />
+      <button id="joinBtn">방 참가</button>
+    </div>
+  </section>
+
+  <div class="app" id="gameScreen" hidden>
     <aside class="sidebar">
       <h1>Twixt</h1>
 
       <div class="card">
-        <label for="nameInput">이름</label>
-        <input id="nameInput" placeholder="플레이어 이름" />
-
-        <label for="roomInput">방 코드</label>
-        <input id="roomInput" placeholder="예: room1" value="room1" />
-
-        <button id="joinBtn">방 참가</button>
-      </div>
-
-      <div class="card">
         <div><strong>내 역할:</strong> <span id="myRole">-</span></div>
-        <div><strong>턴:</strong> <span id="turnText">-</span></div>
+        <span id="turnText" hidden>-</span>
         <div><strong>상태:</strong> <span id="statusText">방에 접속해 주세요</span></div>
-      </div>
-
-      <div class="card">
+        <div id="turnBadge"></div>
         <div class="player-row red-row">
-          Red (상하 연결): <span id="redPlayer">대기 중</span>
+          RED: <span id="redPlayer">대기 중</span> (상하 연결)
         </div>
         <div class="player-row blue-row">
-          Blue (좌우 연결): <span id="bluePlayer">대기 중</span>
+          BLUE: <span id="bluePlayer">대기 중</span> (좌우 연결)
         </div>
+        <div id="requestInfo"></div>
+      </div>
+
+      <div class="card timer-card" id="timerCard">
+        <strong>한 수 제한시간</strong>
+        <div class="timer-selects">
+          <label><select id="timerMinutes"></select><span>분</span></label>
+          <label><select id="timerSeconds"></select><span>초</span></label>
+        </div>
+        <div id="turnTimer" class="turn-timer">타이머 꺼짐</div>
       </div>
 
       <div class="card buttons">
-        <button id="swapBtn" disabled>파이 룰: 진영 교체</button>
+        <button id="swapBtn" disabled>진영 교체</button>
         <button id="restartBtn" disabled>다시 시작</button>
       </div>
     </aside>
@@ -48,6 +57,6 @@
   </div>
 
   <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
-  <script src="app.js?v=20"></script>
+  <script src="app.js?v=21"></script>
 </body>
 </html>

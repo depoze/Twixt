@@ -22,15 +22,18 @@ const redPlayerEl = document.getElementById('redPlayer');
 const bluePlayerEl = document.getElementById('bluePlayer');
 const swapBtn = document.getElementById('swapBtn');
 const restartBtn = document.getElementById('restartBtn');
+const joinScreenEl = document.getElementById('joinScreen');
+const gameScreenEl = document.getElementById('gameScreen');
+const timerMinutesEl = document.getElementById('timerMinutes');
+const timerSecondsEl = document.getElementById('timerSeconds');
+const turnTimerEl = document.getElementById('turnTimer');
 
 let localModeBtn = document.getElementById('localModeBtn');
 if (!localModeBtn) {
   localModeBtn = document.createElement('button');
   localModeBtn.id = 'localModeBtn';
-  localModeBtn.textContent = '로컬 모드';
-  joinBtn.insertAdjacentElement('afterend', localModeBtn);
-  localModeBtn.style.display = 'block';
-  localModeBtn.style.marginTop = '8px';
+  localModeBtn.hidden = true;
+  document.body.appendChild(localModeBtn);
 }
 
 
@@ -99,6 +102,9 @@ let hasJoined = false;
 let currentMode = 'none'; // none | online | local
 let pendingSurrenderConfirm = false;
 let onlineSessionReady = false;
+let timerRenderHandle = null;
+let panelCollapsed = false;
+let panelToggleBtn = null;
 const onlineSessionId =
   sessionStorage.getItem('twixtSessionId') ||
   (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`);
@@ -194,6 +200,8 @@ function ensureLayout() {
 
   const pageRoot = boardContainerEl.parentElement || document.body;
   const originalChildren = Array.from(pageRoot.children);
+  pageRoot.style.display = 'block';
+  pageRoot.style.minHeight = '100vh';
 
   rootLayout = document.createElement('div');
   rootLayout.id = 'twixtMainLayout';
@@ -225,6 +233,18 @@ function ensureLayout() {
   sidebarAnchorEl.style.height = '0';
   leftColumn.appendChild(sidebarAnchorEl);
 
+  panelToggleBtn = document.createElement('button');
+  panelToggleBtn.id = 'panelToggleBtn';
+  panelToggleBtn.type = 'button';
+  panelToggleBtn.textContent = '▲';
+  panelToggleBtn.title = '상태창 접기';
+  panelToggleBtn.setAttribute('aria-label', '상태창 접기');
+  panelToggleBtn.addEventListener('click', () => {
+    panelCollapsed = !panelCollapsed;
+    applyResponsiveLayout();
+  });
+  leftColumn.appendChild(panelToggleBtn);
+
   chatColumn = document.createElement('div');
   chatColumn.id = 'chatColumn';
   chatColumn.style.display = 'flex';
@@ -236,13 +256,15 @@ function ensureLayout() {
   centerColumn = document.createElement('div');
   centerColumn.id = 'centerColumn';
   centerColumn.style.display = 'flex';
-  centerColumn.style.justifyContent = 'center';
+  centerColumn.style.justifyContent = 'flex-start';
   centerColumn.style.alignItems = 'flex-start';
   centerColumn.style.minWidth = '0';
   centerColumn.style.width = '100%';
   centerColumn.style.position = 'relative';
+  centerColumn.style.gap = '8px';
 
   boardContainerEl.style.width = '100%';
+  boardContainerEl.style.padding = '0';
   boardContainerEl.style.aspectRatio = '1 / 1';
   boardContainerEl.style.margin = '0 auto';
   boardContainerEl.style.boxSizing = 'border-box';
@@ -288,6 +310,10 @@ function applyResponsiveLayout() {
 
   const width = window.innerWidth;
   const height = window.innerHeight;
+  rootLayout.style.width = '100%';
+  rootLayout.style.maxWidth = '1920px';
+  rootLayout.style.justifyContent = '';
+  centerColumn.style.width = '100%';
 
   const pageTitle = leftColumn?.querySelector('h1');
   if (pageTitle) {
@@ -342,15 +368,15 @@ function applyResponsiveLayout() {
     boardContainerEl.style.height = 'auto';
     boardContainerEl.style.aspectRatio = '1 / 1';
     boardContainerEl.style.minHeight = '0';
-  } else if (width >= 1120) {
-    rootLayout.style.gridTemplateColumns = '260px 270px minmax(520px, 1fr)';
-    rootLayout.style.columnGap = '14px';
+  } else if (width >= 900) {
+    rootLayout.style.gridTemplateColumns = '220px 240px minmax(400px, 1fr)';
+    rootLayout.style.columnGap = '10px';
 
-    leftColumn.style.minWidth = '260px';
-    chatColumn.style.minWidth = '270px';
+    leftColumn.style.minWidth = '220px';
+    chatColumn.style.minWidth = '240px';
 
     boardContainerEl.style.width = '100%';
-    boardContainerEl.style.maxWidth = '740px';
+    boardContainerEl.style.maxWidth = 'min(100%, 900px)';
     boardContainerEl.style.height = 'auto';
     boardContainerEl.style.aspectRatio = '1 / 1';
     boardContainerEl.style.minHeight = '0';
@@ -366,13 +392,13 @@ function applyResponsiveLayout() {
     chatColumn.style.order = '2';
     centerColumn.style.order = '4';
 
-    boardContainerEl.style.width = 'min(98vw, 82vh, 860px)';
-    boardContainerEl.style.maxWidth = 'min(98vw, 82vh, 860px)';
-    boardContainerEl.style.height = 'min(98vw, 82vh, 860px)';
+    boardContainerEl.style.width = 'min(96vw, 82vh, 860px)';
+    boardContainerEl.style.maxWidth = 'min(96vw, 82vh, 860px)';
+    boardContainerEl.style.height = 'min(96vw, 82vh, 860px)';
     boardContainerEl.style.minHeight = '320px';
     boardContainerEl.style.margin = '0 auto';
 
-    centerColumn.style.justifyContent = 'center';
+  centerColumn.style.justifyContent = 'flex-start';
     centerColumn.style.alignItems = 'flex-start';
 
     if (reviewPanelEl) {
@@ -443,6 +469,8 @@ function applyResponsiveLayout() {
     }
 
     positionHelpUI();
+    applyPanelCollapseLayout();
+    if (state) updateReviewPanel();
     resizeCanvas();
     return;
   }
@@ -452,16 +480,18 @@ function applyResponsiveLayout() {
   centerColumn.style.order = '3';
 
   if (reviewPanelEl) {
-    if (reviewPanelEl.parentElement !== boardContainerEl) {
-      boardContainerEl.appendChild(reviewPanelEl);
+    if (reviewPanelEl.parentElement !== centerColumn) {
+      centerColumn.appendChild(reviewPanelEl);
     }
 
     reviewPanelEl.style.order = '';
-    reviewPanelEl.style.position = 'absolute';
-    reviewPanelEl.style.right = '-240px';
+    reviewPanelEl.style.position = 'relative';
+    reviewPanelEl.style.right = 'auto';
     reviewPanelEl.style.top = '14px';
     reviewPanelEl.style.left = 'auto';
     reviewPanelEl.style.width = '180px';
+    reviewPanelEl.style.minWidth = '180px';
+    reviewPanelEl.style.flex = '0 0 180px';
     reviewPanelEl.style.margin = '0';
     reviewPanelEl.style.display = 'flex';
     reviewPanelEl.style.flexDirection = 'column';
@@ -503,7 +533,153 @@ function applyResponsiveLayout() {
   }
 
   positionHelpUI();
+  rootLayout.style.columnGap = '8px';
+  boardContainerEl.style.aspectRatio = '1 / 1';
+  canvas.style.aspectRatio = '1 / 1';
+  applyPanelCollapseLayout();
+  if (state) updateReviewPanel();
   resizeCanvas();
+}
+
+function applyPanelCollapseLayout() {
+  if (!rootLayout || !leftColumn || !chatColumn || !centerColumn || !panelToggleBtn) return;
+
+  const sidebar = leftColumn.querySelector('.sidebar');
+  const cards = sidebar ? Array.from(sidebar.querySelectorAll(':scope > .card')) : [];
+  const statusCard = cards[0];
+  const timerCard = document.getElementById('timerCard');
+  const buttonsCard = sidebar?.querySelector('.buttons');
+  const pageTitle = sidebar?.querySelector('h1');
+  const timerTitle = timerCard?.querySelector('strong');
+  const timerSelects = timerCard?.querySelector('.timer-selects');
+
+  panelToggleBtn.textContent = panelCollapsed ? '▼' : '▲';
+  panelToggleBtn.title = panelCollapsed ? '상태창 펼치기' : '상태창 접기';
+  panelToggleBtn.setAttribute('aria-label', panelToggleBtn.title);
+
+  if (!panelCollapsed) {
+    if (chatColumn.parentElement !== rootLayout) rootLayout.insertBefore(chatColumn, centerColumn);
+    if (pageTitle) pageTitle.style.display = '';
+    if (statusCard) statusCard.style.display = '';
+    if (timerTitle) timerTitle.style.display = '';
+    if (timerSelects) timerSelects.style.display = 'grid';
+    if (timerCard) {
+      timerCard.style.display = '';
+      timerCard.style.padding = '';
+      timerCard.style.margin = '';
+      timerCard.style.marginBottom = '';
+    }
+    if (buttonsCard) {
+      buttonsCard.style.display = 'grid';
+      buttonsCard.style.padding = '';
+      buttonsCard.style.margin = '';
+      for (const button of buttonsCard.querySelectorAll('button')) button.style.display = '';
+    }
+    undoBtn.style.whiteSpace = '';
+    if (sidebar) {
+      sidebar.style.display = '';
+      sidebar.style.gridTemplateColumns = '';
+      sidebar.style.gap = '';
+      sidebar.style.alignItems = '';
+      sidebar.style.padding = '';
+      sidebar.style.borderRadius = '';
+      sidebar.style.background = '';
+    }
+    fitBoardToViewport();
+    fitChatToViewport(false);
+    panelToggleBtn.classList.remove('is-collapsed');
+    return;
+  }
+
+  if (chatColumn.parentElement !== leftColumn) leftColumn.appendChild(chatColumn);
+  if (pageTitle) pageTitle.style.display = 'none';
+  if (statusCard) statusCard.style.display = 'none';
+  if (timerTitle) timerTitle.style.display = 'none';
+  if (timerSelects) timerSelects.style.display = 'none';
+  if (timerCard) {
+    timerCard.style.display = 'block';
+    timerCard.style.padding = '8px';
+    timerCard.style.margin = '0';
+  }
+  if (buttonsCard) {
+    buttonsCard.style.display = 'block';
+    buttonsCard.style.padding = '8px';
+    buttonsCard.style.margin = '0';
+    for (const button of buttonsCard.querySelectorAll('button')) {
+      button.style.display = button === undoBtn ? 'block' : 'none';
+    }
+  }
+  undoBtn.style.whiteSpace = 'nowrap';
+  if (sidebar) {
+    sidebar.style.display = 'grid';
+    sidebar.style.gridTemplateColumns = '120px minmax(170px, 1fr)';
+    sidebar.style.gap = '8px';
+    sidebar.style.alignItems = 'center';
+    sidebar.style.padding = '8px 56px 8px 8px';
+    sidebar.style.borderRadius = '18px';
+    sidebar.style.background = 'rgba(255,255,255,0.04)';
+  }
+  panelToggleBtn.classList.add('is-collapsed');
+
+  if (window.innerWidth >= 700) {
+    rootLayout.style.gridTemplateColumns = '380px minmax(0, 1fr)';
+    rootLayout.style.columnGap = '16px';
+    leftColumn.style.minWidth = '380px';
+    leftColumn.style.order = '1';
+    centerColumn.style.order = '2';
+    fitBoardToViewport();
+  }
+
+  fitChatToViewport(true);
+}
+
+function fitBoardToViewport() {
+  if (!centerColumn || !boardContainerEl) return;
+  const reviewSpace = state?.winner && reviewPanelEl?.parentElement === centerColumn ? 188 : 0;
+  const availableWidth = centerColumn.getBoundingClientRect().width - reviewSpace;
+  const availableHeight = Math.max(320, window.innerHeight - 28);
+  if (availableWidth <= 0) return;
+
+  const size = Math.floor(Math.min(availableWidth, availableHeight));
+  boardContainerEl.style.width = `${size}px`;
+  boardContainerEl.style.maxWidth = `${size}px`;
+  boardContainerEl.style.height = `${size}px`;
+  boardContainerEl.style.minHeight = '0';
+  boardContainerEl.style.aspectRatio = '1 / 1';
+
+  if (window.innerWidth >= 900) {
+    const centerWidth = size + reviewSpace;
+    const leftWidth = panelCollapsed ? 380 : Math.round(leftColumn.getBoundingClientRect().width);
+    const chatWidth = panelCollapsed ? 0 : Math.round(chatColumn.getBoundingClientRect().width);
+    const gap = panelCollapsed ? 16 : 8;
+    const columns = panelCollapsed
+      ? `${leftWidth}px ${centerWidth}px`
+      : `${leftWidth}px ${chatWidth}px ${centerWidth}px`;
+    rootLayout.style.gridTemplateColumns = columns;
+    rootLayout.style.columnGap = `${gap}px`;
+    rootLayout.style.width = '100%';
+    rootLayout.style.maxWidth = '100%';
+    rootLayout.style.justifyContent = 'center';
+    rootLayout.style.marginLeft = 'auto';
+    rootLayout.style.marginRight = 'auto';
+    centerColumn.style.width = `${centerWidth}px`;
+  } else {
+    rootLayout.style.width = '100%';
+    centerColumn.style.width = '100%';
+  }
+}
+
+function fitChatToViewport(collapsed) {
+  if (!chatWrapEl || !rootLayout) return;
+  const rootTop = rootLayout.getBoundingClientRect().top;
+  const viewportRoom = Math.max(280, window.innerHeight - rootTop - 14);
+  const sidebar = leftColumn?.querySelector('.sidebar');
+  const controlsHeight = collapsed && sidebar ? sidebar.getBoundingClientRect().height + 14 : 0;
+  const height = Math.max(280, viewportRoom - controlsHeight);
+
+  chatWrapEl.style.height = `${Math.floor(height)}px`;
+  chatWrapEl.style.minHeight = '280px';
+  chatWrapEl.style.maxHeight = `${Math.floor(height)}px`;
 }
 
 function ensureChatUI() {
@@ -1083,8 +1259,6 @@ function drawStatusText() {
 
   ctx.fillStyle = COLORS.text;
   ctx.font = `bold ${Math.max(14, Math.min(18, getBoardMetrics().cell * 0.52))}px Arial`;
-  ctx.fillText('Twixt', 14, 26);
-
   if (state?.reviewMode) {
     ctx.fillStyle = COLORS.text;
     ctx.fillText('복기 중', w - 78, 26);
@@ -1126,6 +1300,55 @@ function renderAll() {
   updatePanel();
   draw();
   renderChat();
+  renderTurnTimer();
+}
+
+function populateTimerOptions() {
+  timerMinutesEl.innerHTML = Array.from({ length: 11 }, (_, value) => `<option value="${value}">${value}</option>`).join('');
+  timerSecondsEl.innerHTML = [0, 10, 20, 30, 40, 50]
+    .map((value) => `<option value="${value}">${value}</option>`)
+    .join('');
+}
+
+function sendTimerSetting() {
+  if (!isOnlineMode() || !onlineSessionReady || !roomId || state?.moveCount !== 0) return;
+  socket.emit('set-turn-timer', {
+    roomId,
+    minutes: Number(timerMinutesEl.value),
+    seconds: Number(timerSecondsEl.value),
+  });
+}
+
+function renderTurnTimer() {
+  if (!turnTimerEl || !state) return;
+  const durationMs = state.timerDurationMs || 0;
+  const remainingMs = state.turnDeadline ? Math.max(0, state.turnDeadline - Date.now()) : durationMs;
+  const totalSeconds = Math.ceil(remainingMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  turnTimerEl.style.background = 'rgba(255,255,255,0.06)';
+  turnTimerEl.style.boxShadow = 'none';
+  turnTimerEl.classList.remove('timer-critical');
+
+  if (!durationMs) {
+    turnTimerEl.textContent = '타이머 꺼짐';
+    return;
+  }
+  if (!state.turnDeadline) {
+    turnTimerEl.textContent = state.moveCount === 0 ? '첫 수 대기 중' : `${minutes}:${String(seconds).padStart(2, '0')}`;
+    return;
+  }
+
+  turnTimerEl.textContent = `${minutes}:${String(seconds).padStart(2, '0')}`;
+  const color = state.turn;
+  if (remainingMs <= 30000) {
+    turnTimerEl.style.background = color === 'red' ? 'rgba(217,67,67,0.55)' : 'rgba(47,116,221,0.55)';
+    turnTimerEl.style.boxShadow = `0 0 22px ${color === 'red' ? 'rgba(217,67,67,0.42)' : 'rgba(47,116,221,0.42)'}`;
+    if (remainingMs <= 10000) turnTimerEl.classList.add('timer-critical');
+  } else {
+    turnTimerEl.style.background = color === 'red' ? 'rgba(217,67,67,0.25)' : 'rgba(47,116,221,0.25)';
+  }
 }
 
 function isOnlineMode() {
@@ -1478,6 +1701,14 @@ joinBtn.addEventListener('click', () => {
   joinOnlineRoom();
 });
 
+roomInput.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') joinBtn.click();
+});
+
+nameInput.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') joinBtn.click();
+});
+
 localModeBtn.addEventListener('click', () => {
   resetPendingSurrenderConfirm();
 
@@ -1501,7 +1732,11 @@ swapBtn.addEventListener('click', () => {
     return;
   }
   if (!roomId) return;
-  socket.emit('swap-sides', { roomId });
+  if (state?.moveCount === 0) {
+    socket.emit('swap-teams', { roomId });
+  } else if (state?.moveCount === 1) {
+    socket.emit('swap-sides', { roomId });
+  }
 });
 
 undoBtn.addEventListener('click', () => {
@@ -1644,6 +1879,9 @@ socket.on('joined', ({ role, state: roomState }) => {
   state = roomState;
   hasJoined = true;
   onlineSessionReady = true;
+  joinScreenEl.hidden = true;
+  gameScreenEl.hidden = false;
+  applyResponsiveLayout();
   resetPendingSurrenderConfirm();
 
   joinBtn.disabled = true;
@@ -1665,6 +1903,12 @@ socket.on('state', (roomState) => {
   if (!isOnlineMode()) return;
 
   state = roomState;
+
+  if (state.moveCount === 0 && document.activeElement !== timerMinutesEl && document.activeElement !== timerSecondsEl) {
+    const durationSeconds = Math.floor((state.timerDurationMs || 0) / 1000);
+    timerMinutesEl.value = String(Math.floor(durationSeconds / 60));
+    timerSecondsEl.value = String(durationSeconds % 60);
+  }
 
   if (state.players.red?.socketId === socket.id) {
     myRole = 'red';
@@ -1751,6 +1995,8 @@ function updateReviewPanel() {
   const total = state?.reviewTotal ?? 0;
   const hasGhosts = !!(state?.reviewGhostPegs && state.reviewGhostPegs.length > 0);
 
+  reviewPanelEl.style.display = canReview ? (window.innerWidth < 1120 ? 'grid' : 'flex') : 'none';
+
   reviewBtn.disabled = !canReview;
   reviewBtn.textContent = reviewMode ? '복기 종료' : '복기하기';
 
@@ -1828,13 +2074,25 @@ function updatePanel() {
   localModeBtn.disabled = hasJoined;
 }
 
+  const canUseUnifiedSwap =
+    isOnlineMode() &&
+    onlineSessionReady &&
+    !!state.players.red &&
+    !!state.players.blue &&
+    !state.winner &&
+    !state.reviewMode &&
+    myRole !== 'spectator' &&
+    myRole !== 'none' &&
+    (state.moveCount === 0 || (state.moveCount === 1 && myRole === 'blue' && state.canSwap));
+
   if (isLocalMode()) {
     swapBtn.disabled = !(state.canSwap && state.moveCount === 1);
     undoBtn.disabled = !state.canUndo || state.reviewMode;
     restartBtn.disabled = false;
     updateSurrenderButton(canLocalAct);
   } else {
-    swapBtn.disabled = !(state.canSwap && myRole === 'blue' && state.moveCount === 1 && !state.reviewMode);
+    swapBtn.disabled = !canUseUnifiedSwap;
+    swapBtn.textContent = state.moveCount === 0 ? '진영 교체' : '파이 룰: 진영 교체';
     undoBtn.disabled = !canRequestSharedAction || !state.canUndo;
     restartBtn.disabled = !canRequestSharedAction;
     const canPlayNow =
@@ -1909,6 +2167,11 @@ function updatePanel() {
   }
 
   updateReviewPanel();
+  if (timerMinutesEl && timerSecondsEl) {
+    const canSetTimer = isOnlineMode() && onlineSessionReady && state.moveCount === 0 && !state.winner && myRole !== 'spectator';
+    timerMinutesEl.disabled = !canSetTimer;
+    timerSecondsEl.disabled = !canSetTimer;
+  }
   if (chatInputEl && chatSendBtn && isOnlineMode()) {
     chatInputEl.disabled = !onlineSessionReady;
     chatSendBtn.disabled = !onlineSessionReady;
@@ -1937,5 +2200,9 @@ ensureLayout();
 ensureChatUI();
 ensureHelpUI();
 ensureReviewUI();
+populateTimerOptions();
+timerMinutesEl.addEventListener('change', sendTimerSetting);
+timerSecondsEl.addEventListener('change', sendTimerSetting);
+timerRenderHandle = setInterval(renderTurnTimer, 200);
 resizeCanvas();
 renderChat();
