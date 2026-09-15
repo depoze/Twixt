@@ -240,8 +240,14 @@ function ensureLayout() {
   panelToggleBtn.title = '상태창 접기';
   panelToggleBtn.setAttribute('aria-label', '상태창 접기');
   panelToggleBtn.addEventListener('click', () => {
+    const chatScrollTop = chatMessagesEl ? chatMessagesEl.scrollTop : null;
     panelCollapsed = !panelCollapsed;
     applyResponsiveLayout();
+    if (chatScrollTop !== null) {
+      requestAnimationFrame(() => {
+        chatMessagesEl.scrollTop = chatScrollTop;
+      });
+    }
   });
   leftColumn.appendChild(panelToggleBtn);
 
@@ -310,10 +316,18 @@ function applyResponsiveLayout() {
 
   const width = window.innerWidth;
   const height = window.innerHeight;
+  const isPortrait = height > width || (width < 1100 && height >= width * 0.95);
   rootLayout.style.width = '100%';
   rootLayout.style.maxWidth = '1920px';
   rootLayout.style.justifyContent = '';
   centerColumn.style.width = '100%';
+  centerColumn.style.gridColumn = '';
+  centerColumn.style.gridRow = '';
+  leftColumn.style.gridColumn = '';
+  leftColumn.style.gridRow = '';
+  chatColumn.style.gridColumn = '';
+  chatColumn.style.gridRow = '';
+  panelToggleBtn.style.display = '';
 
   const pageTitle = leftColumn?.querySelector('h1');
   if (pageTitle) {
@@ -331,6 +345,25 @@ function applyResponsiveLayout() {
       pageTitle.style.margin = '0 0 4px 0';
     }
   }
+
+  if (isPortrait) {
+    applyPortraitLayout(width, height);
+    return;
+  }
+
+  rootLayout.style.padding = '14px 16px';
+  rootLayout.style.alignItems = 'start';
+  leftColumn.style.width = '100%';
+  leftColumn.style.alignSelf = '';
+  leftColumn.style.wordBreak = '';
+  leftColumn.style.overflowWrap = '';
+  chatColumn.style.width = '100%';
+  centerColumn.style.gridColumn = '';
+  centerColumn.style.gridRow = '';
+  leftColumn.style.gridColumn = '';
+  leftColumn.style.gridRow = '';
+  chatColumn.style.gridColumn = '';
+  chatColumn.style.gridRow = '';
 
   if (width >= 1700) {
     rootLayout.style.gridTemplateColumns = '320px 340px minmax(860px, 1fr)';
@@ -466,6 +499,7 @@ function applyResponsiveLayout() {
       chatWrapEl.style.height = '380px';
       chatWrapEl.style.minHeight = '300px';
       chatWrapEl.style.maxHeight = '380px';
+      chatWrapEl.style.padding = '14px';
     }
 
     positionHelpUI();
@@ -530,6 +564,7 @@ function applyResponsiveLayout() {
     chatWrapEl.style.height = `min(calc(100vh - 28px), ${Math.max(560, height - 32)}px)`;
     chatWrapEl.style.minHeight = '520px';
     chatWrapEl.style.maxHeight = '980px';
+    chatWrapEl.style.padding = '14px';
   }
 
   positionHelpUI();
@@ -541,8 +576,104 @@ function applyResponsiveLayout() {
   resizeCanvas();
 }
 
-function applyPanelCollapseLayout() {
+function applyPortraitLayout(width, height) {
+  const outerPad = 12;
+  const rowGap = 10;
+  const bottomGap = 10;
+  const contentWidth = Math.max(320, width - outerPad * 2);
+  const boardSize = Math.floor(Math.min(contentWidth, height * 0.68, 920));
+  const bottomHeight = Math.max(180, Math.floor(height - boardSize - outerPad * 2 - rowGap - bottomGap));
+  const layoutWidth = Math.min(contentWidth, Math.max(boardSize, Math.min(boardSize + 130, Math.floor(width * 0.86)))) + outerPad * 2;
+  const sideWidth = panelCollapsed ? 150 : Math.min(300, Math.max(244, Math.floor(layoutWidth * 0.42)));
+  const chatHeight = bottomHeight;
+
+  rootLayout.style.width = `${layoutWidth}px`;
+  rootLayout.style.maxWidth = '100%';
+  rootLayout.style.marginLeft = 'auto';
+  rootLayout.style.marginRight = 'auto';
+  rootLayout.style.padding = `${outerPad}px`;
+  rootLayout.style.gridTemplateColumns = `${sideWidth}px minmax(0, 1fr)`;
+  rootLayout.style.gridTemplateRows = `${boardSize}px ${bottomHeight}px`;
+  rootLayout.style.columnGap = '10px';
+  rootLayout.style.rowGap = `${rowGap}px`;
+  rootLayout.style.justifyContent = 'center';
+  rootLayout.style.alignItems = 'stretch';
+
+  leftColumn.style.order = '2';
+  leftColumn.style.gridColumn = '1';
+  leftColumn.style.gridRow = '2';
+  leftColumn.style.minWidth = '0';
+  leftColumn.style.width = '100%';
+  leftColumn.style.gap = panelCollapsed ? '0' : '10px';
+  leftColumn.style.alignSelf = 'start';
+  leftColumn.style.wordBreak = 'keep-all';
+  leftColumn.style.overflowWrap = 'normal';
+
+  chatColumn.style.order = '3';
+  chatColumn.style.gridColumn = '2';
+  chatColumn.style.gridRow = '2';
+  chatColumn.style.minWidth = '0';
+  chatColumn.style.width = '100%';
+
+  centerColumn.style.order = '1';
+  centerColumn.style.gridColumn = '1 / -1';
+  centerColumn.style.gridRow = '1';
+  centerColumn.style.width = '100%';
+  centerColumn.style.justifyContent = 'center';
+  centerColumn.style.alignItems = 'center';
+
+  if (reviewPanelEl) {
+    if (reviewPanelEl.parentElement !== rootLayout) rootLayout.appendChild(reviewPanelEl);
+    reviewPanelEl.style.order = '4';
+    reviewPanelEl.style.gridColumn = '1 / -1';
+    reviewPanelEl.style.position = 'relative';
+    reviewPanelEl.style.right = 'auto';
+    reviewPanelEl.style.top = 'auto';
+    reviewPanelEl.style.left = 'auto';
+    reviewPanelEl.style.width = '100%';
+    reviewPanelEl.style.minWidth = '0';
+    reviewPanelEl.style.flex = '';
+    reviewPanelEl.style.margin = '0';
+    reviewPanelEl.style.display = 'grid';
+    reviewPanelEl.style.gridTemplateColumns = '80px minmax(120px, 1fr) 130px 64px';
+    reviewPanelEl.style.alignItems = 'center';
+    reviewPanelEl.style.gap = '8px';
+    reviewPanelEl.style.padding = '10px';
+    reviewPanelEl.style.boxSizing = 'border-box';
+  }
+
+  boardContainerEl.style.width = `${boardSize}px`;
+  boardContainerEl.style.maxWidth = `${boardSize}px`;
+  boardContainerEl.style.height = `${boardSize}px`;
+  boardContainerEl.style.minHeight = '0';
+  boardContainerEl.style.margin = '0 auto';
+  boardContainerEl.style.aspectRatio = '1 / 1';
+  canvas.style.aspectRatio = '1 / 1';
+
+  if (chatWrapEl) {
+    chatWrapEl.style.height = `${chatHeight}px`;
+    chatWrapEl.style.minHeight = '160px';
+    chatWrapEl.style.maxHeight = `${chatHeight}px`;
+    chatWrapEl.style.padding = panelCollapsed ? '14px' : '10px';
+  }
+
+  const pageTitle = leftColumn?.querySelector('h1');
+  if (pageTitle) {
+    pageTitle.style.fontSize = panelCollapsed ? '34px' : '32px';
+    pageTitle.style.margin = panelCollapsed ? '0 48px 4px 0' : '0 54px 6px 26px';
+    pageTitle.style.lineHeight = '1.05';
+    pageTitle.style.whiteSpace = 'nowrap';
+  }
+
+  positionHelpUI();
+  applyPanelCollapseLayout(false, true);
+  if (state) updateReviewPanel();
+  resizeCanvas();
+}
+
+function applyPanelCollapseLayout(forceCompact = false, portraitStack = false) {
   if (!rootLayout || !leftColumn || !chatColumn || !centerColumn || !panelToggleBtn) return;
+  const compact = panelCollapsed || forceCompact;
 
   const sidebar = leftColumn.querySelector('.sidebar');
   const cards = sidebar ? Array.from(sidebar.querySelectorAll(':scope > .card')) : [];
@@ -553,12 +684,16 @@ function applyPanelCollapseLayout() {
   const timerTitle = timerCard?.querySelector('strong');
   const timerSelects = timerCard?.querySelector('.timer-selects');
 
-  panelToggleBtn.textContent = panelCollapsed ? '▼' : '▲';
-  panelToggleBtn.title = panelCollapsed ? '상태창 펼치기' : '상태창 접기';
+  panelToggleBtn.textContent = compact ? '▼' : '▲';
+  panelToggleBtn.title = compact ? '상태창 펼치기' : '상태창 접기';
   panelToggleBtn.setAttribute('aria-label', panelToggleBtn.title);
+  panelToggleBtn.style.display = '';
 
-  if (!panelCollapsed) {
-    if (chatColumn.parentElement !== rootLayout) rootLayout.insertBefore(chatColumn, centerColumn);
+  if (!compact) {
+    if (chatColumn.parentElement !== rootLayout) {
+      if (portraitStack) rootLayout.appendChild(chatColumn);
+      else rootLayout.insertBefore(chatColumn, centerColumn);
+    }
     if (pageTitle) pageTitle.style.display = '';
     if (statusCard) statusCard.style.display = '';
     if (timerTitle) timerTitle.style.display = '';
@@ -584,14 +719,21 @@ function applyPanelCollapseLayout() {
       sidebar.style.padding = '';
       sidebar.style.borderRadius = '';
       sidebar.style.background = '';
+      sidebar.style.height = portraitStack ? '100%' : '';
+      sidebar.style.overflowY = portraitStack ? 'auto' : '';
     }
+    panelToggleBtn.classList.remove('is-collapsed');
+    if (portraitStack) return;
     fitBoardToViewport();
     fitChatToViewport(false);
-    panelToggleBtn.classList.remove('is-collapsed');
     return;
   }
 
-  if (chatColumn.parentElement !== leftColumn) leftColumn.appendChild(chatColumn);
+  if (portraitStack) {
+    if (chatColumn.parentElement !== rootLayout) rootLayout.appendChild(chatColumn);
+  } else if (chatColumn.parentElement !== leftColumn) {
+    leftColumn.appendChild(chatColumn);
+  }
   if (pageTitle) pageTitle.style.display = 'none';
   if (statusCard) statusCard.style.display = 'none';
   if (timerTitle) timerTitle.style.display = 'none';
@@ -599,7 +741,7 @@ function applyPanelCollapseLayout() {
   if (timerCard) {
     timerCard.style.display = 'block';
     timerCard.style.padding = '8px';
-    timerCard.style.margin = '0';
+    timerCard.style.margin = portraitStack ? '26px 0 0 0' : '0';
   }
   if (buttonsCard) {
     buttonsCard.style.display = 'block';
@@ -614,14 +756,16 @@ function applyPanelCollapseLayout() {
     sidebar.style.display = 'grid';
     sidebar.style.gridTemplateColumns = '1fr';
     sidebar.style.gap = '8px';
-    sidebar.style.alignItems = 'center';
-    sidebar.style.padding = '8px 56px 8px 8px';
+    sidebar.style.alignItems = portraitStack ? 'stretch' : 'center';
+    sidebar.style.padding = portraitStack ? '8px' : '8px 56px 8px 8px';
     sidebar.style.borderRadius = '18px';
     sidebar.style.background = 'rgba(255,255,255,0.04)';
+    sidebar.style.height = '';
+    sidebar.style.overflowY = '';
   }
-  panelToggleBtn.classList.add('is-collapsed');
+  panelToggleBtn.classList.toggle('is-collapsed', !portraitStack);
 
-  if (window.innerWidth >= 700) {
+  if (!portraitStack && window.innerWidth >= 700) {
     rootLayout.style.gridTemplateColumns = '380px minmax(0, 1fr)';
     rootLayout.style.columnGap = '16px';
     leftColumn.style.minWidth = '380px';
@@ -630,7 +774,7 @@ function applyPanelCollapseLayout() {
     fitBoardToViewport();
   }
 
-  fitChatToViewport(true);
+  if (!portraitStack) fitChatToViewport(true);
 }
 
 function fitBoardToViewport() {
@@ -702,8 +846,6 @@ function ensureChatUI() {
   chatWrapEl.style.minHeight = '520px';
 
   chatWrapEl.innerHTML = `
-    <div style="font-weight:700; margin-bottom:10px; color:#ffffff; font-size:22px;">실시간 채팅</div>
-
     <div
       id="chatMessages"
       style="
@@ -843,7 +985,7 @@ function ensureHelpUI() {
   helpPopupEl.style.lineHeight = '1.55';
   helpPopupEl.style.boxSizing = 'border-box';
   helpPopupEl.style.boxShadow = '0 8px 24px rgba(0,0,0,0.24)';
-  helpPopupEl.style.zIndex = '20';
+  helpPopupEl.style.zIndex = '60';
   helpPopupEl.style.display = 'none';
   helpPopupEl.innerHTML = `
     <div style="font-weight:800; margin-bottom:8px; font-size:15px;">Twixt 규칙</div>
@@ -1947,28 +2089,45 @@ function renderChat() {
   if (!chatMessagesEl) return;
 
   const messages = state?.chatMessages || [];
-  chatMessagesEl.innerHTML = messages
-    .map((msg) => {
+  const groups = [];
+  for (const msg of messages) {
+    const lastGroup = groups[groups.length - 1];
+    if (lastGroup && lastGroup.role === msg.role && lastGroup.name === msg.name) {
+      lastGroup.messages.push(msg);
+      lastGroup.time = msg.time;
+    } else {
+      groups.push({
+        role: msg.role,
+        name: msg.name,
+        time: msg.time,
+        messages: [msg],
+      });
+    }
+  }
+
+  chatMessagesEl.innerHTML = groups
+    .map((group) => {
       const color =
-        msg.role === 'red'
+        group.role === 'red'
           ? COLORS.red
-          : msg.role === 'blue'
+          : group.role === 'blue'
           ? COLORS.blue
           : '#666';
 
-      const timeText = new Date(msg.time).toLocaleTimeString([], {
+      const timeText = new Date(group.time).toLocaleTimeString([], {
         hour: '2-digit',
         minute: '2-digit',
       });
+      const lines = group.messages
+        .map((msg, index) => `<div style="margin-top:${index === 0 ? 0 : 1}px; white-space:pre-wrap;">${escapeHtml(msg.text)}</div>`)
+        .join('');
 
       return `
-        <div style="margin-bottom:1px; padding:2px 0 3px 0; border-bottom:1px solid #f2f2f2; line-height:1.08;">
-          <div style="font-size:11px; color:${color}; font-weight:700; margin-bottom:1px;">
-            ${escapeHtml(msg.name)} · ${timeText}
+        <div style="margin-bottom:5px; padding:0 0 5px 0; border-bottom:1px solid #f2f2f2; line-height:1.06;">
+          <div style="font-size:12px; color:${color}; font-weight:700; margin-bottom:0;">
+            ${escapeHtml(group.name)} <span style="color:#999; font-weight:500;">· ${timeText}</span>
           </div>
-          <div style="margin-top:0; white-space:pre-wrap; word-break:break-word; color:#111111; font-size:12px;">
-            ${escapeHtml(msg.text)}
-          </div>
+          <div style="margin-top:5px; word-break:keep-all; overflow-wrap:anywhere; color:#111111; font-size:13px;">${lines}</div>
         </div>
       `;
     })
