@@ -74,25 +74,25 @@ if (!requestInfoEl) {
 }
 
 const COLORS = {
-  red: '#d94343',
-  redActive: '#ff4a4a',
-  redFillSoft: 'rgba(255, 120, 120, 0.22)',
-  redFillActive: 'rgba(255, 95, 95, 0.5)',
+  red: '#e26363',
+  redActive: '#ef8585',
+  redFillSoft: 'rgba(226, 99, 99, 0.14)',
+  redFillActive: 'rgba(226, 99, 99, 0.32)',
 
-  blue: '#2f74dd',
-  blueActive: '#4d96ff',
-  blueFillSoft: 'rgba(120, 180, 255, 0.22)',
-  blueFillActive: 'rgba(95, 165, 255, 0.5)',
+  blue: '#578fdb',
+  blueActive: '#85b0ee',
+  blueFillSoft: 'rgba(87, 143, 219, 0.14)',
+  blueFillActive: 'rgba(87, 143, 219, 0.32)',
 
-  redGhost: 'rgba(217, 67, 67, 0.42)',
-  blueGhost: 'rgba(47, 116, 221, 0.42)',
-  redGhostStroke: 'rgba(217, 67, 67, 0.55)',
-  blueGhostStroke: 'rgba(47, 116, 221, 0.55)',
+  redGhost: 'rgba(226, 99, 99, 0.42)',
+  blueGhost: 'rgba(87, 143, 219, 0.42)',
+  redGhostStroke: 'rgba(226, 99, 99, 0.55)',
+  blueGhostStroke: 'rgba(87, 143, 219, 0.55)',
 
   board: '#f7f1df',
-  hole: '#7b6846',
+  hole: '#8a7b5f',
   text: '#1f2430',
-  latest: '#ffd84d',
+  latest: '#e6bb70',
 };
 
 let roomId = '';
@@ -292,7 +292,7 @@ function ensureLayout() {
 
   const pageTitle = leftColumn.querySelector('h1');
   if (pageTitle) {
-    pageTitle.textContent = 'Twixt';
+    pageTitle.innerHTML = 'Twixt<span class="title-dot">.</span>';
     pageTitle.style.textAlign = 'center';
     pageTitle.style.margin = '-6px 0 4px 0';
     pageTitle.style.fontSize = '56px';
@@ -759,7 +759,7 @@ function applyPanelCollapseLayout(forceCompact = false, portraitStack = false) {
     sidebar.style.alignItems = portraitStack ? 'stretch' : 'center';
     sidebar.style.padding = portraitStack ? '8px' : '8px 56px 8px 8px';
     sidebar.style.borderRadius = '18px';
-    sidebar.style.background = 'rgba(255,255,255,0.04)';
+    sidebar.style.background = 'var(--panel-soft)';
     sidebar.style.height = '';
     sidebar.style.overflowY = '';
   }
@@ -834,12 +834,12 @@ function ensureChatUI() {
   chatWrapEl = document.createElement('div');
   chatWrapEl.id = 'chatWrap';
   chatWrapEl.style.width = '100%';
-  chatWrapEl.style.background = 'rgba(20, 25, 45, 0.85)';
-  chatWrapEl.style.border = '1px solid rgba(255,255,255,0.08)';
+  chatWrapEl.style.background = 'var(--panel-surface)';
+  chatWrapEl.style.border = '1px solid var(--line)';
   chatWrapEl.style.borderRadius = '18px';
   chatWrapEl.style.padding = '14px';
   chatWrapEl.style.boxSizing = 'border-box';
-  chatWrapEl.style.boxShadow = '0 8px 30px rgba(0,0,0,0.18)';
+  chatWrapEl.style.boxShadow = 'var(--panel-shadow)';
   chatWrapEl.style.display = 'flex';
   chatWrapEl.style.flexDirection = 'column';
   chatWrapEl.style.height = 'calc(100vh - 28px)';
@@ -851,9 +851,9 @@ function ensureChatUI() {
       style="
         flex:1 1 auto;
         overflow-y:auto;
-        border:1px solid rgba(255,255,255,0.10);
+        border:1px solid var(--chat-line);
         border-radius:16px;
-        background:#ffffff;
+        background:var(--chat-surface);
         padding:8px 10px;
         box-sizing:border-box;
         min-height:0;
@@ -881,12 +881,11 @@ function ensureChatUI() {
           min-width:0;
           height:44px;
           padding:0 14px;
-          border:1px solid rgba(255,255,255,0.14);
+          border:1px solid var(--line);
           border-radius:14px;
-          background:#ffffff;
-          color:#111111;
+          background:var(--input-surface);
+          color:var(--text);
           font-size:14px;
-          outline:none;
           box-sizing:border-box;
         "
       />
@@ -898,8 +897,8 @@ function ensureChatUI() {
           height:44px;
           border:none;
           border-radius:14px;
-          background:#cfd6ea;
-          color:#1f2430;
+          background:var(--gold);
+          color:#272535;
           font-size:18px;
           font-weight:700;
           cursor:pointer;
@@ -961,8 +960,10 @@ function ensureHelpUI() {
   helpButtonEl.style.width = '34px';
   helpButtonEl.style.height = '34px';
   helpButtonEl.style.borderRadius = '50%';
-  helpButtonEl.style.border = '1px solid rgba(0,0,0,0.12)';
-  helpButtonEl.style.background = 'rgba(255,255,255,0.94)';
+  helpButtonEl.style.border = '1px solid var(--line)';
+  helpButtonEl.style.background = 'var(--panel-2)';
+  helpButtonEl.style.color = 'var(--gold)';
+  helpButtonEl.setAttribute('aria-label', '게임 규칙');
   helpButtonEl.style.fontWeight = '800';
   helpButtonEl.style.fontSize = '20px';
   helpButtonEl.style.cursor = 'pointer';
@@ -979,8 +980,9 @@ function ensureHelpUI() {
   helpPopupEl.style.position = 'absolute';
   helpPopupEl.style.padding = '14px 16px';
   helpPopupEl.style.borderRadius = '14px';
-  helpPopupEl.style.background = 'rgba(20,25,45,0.96)';
-  helpPopupEl.style.color = '#fff';
+  helpPopupEl.style.background = 'var(--panel)';
+  helpPopupEl.style.color = 'var(--text)';
+  helpPopupEl.style.border = '1px solid var(--line)';
   helpPopupEl.style.fontSize = '14px';
   helpPopupEl.style.lineHeight = '1.55';
   helpPopupEl.style.boxSizing = 'border-box';
@@ -994,7 +996,7 @@ function ensureHelpUI() {
       2. 말은 자기 목표 방향의 반대쪽 테두리와 모서리에 둘 수 없습니다.<br>
       3. 같은 색 말이 체스 나이트 이동 거리면 자동으로 연결됩니다.<br>
       4. 서로 다른 색 링크는 교차할 수 없습니다.<br>
-      5. 첫 수 직후 파랑은 스왑할 수 있습니다.
+      5. 첫 수 직후 파랑은 파이 룰을 쓸 수 있습니다. 첫 돌의 색이 바뀌고 가로·세로 좌표가 서로 바뀝니다.
     </div>
   `;
 
@@ -1027,12 +1029,12 @@ function ensureReviewUI() {
   reviewPanelEl.style.right = '-240px';
   reviewPanelEl.style.top = '14px';
   reviewPanelEl.style.width = '180px';
-  reviewPanelEl.style.background = 'rgba(20,25,45,0.92)';
-  reviewPanelEl.style.border = '1px solid rgba(255,255,255,0.10)';
+  reviewPanelEl.style.background = 'var(--panel-surface)';
+  reviewPanelEl.style.border = '1px solid var(--line)';
   reviewPanelEl.style.borderRadius = '16px';
   reviewPanelEl.style.padding = '14px';
   reviewPanelEl.style.boxSizing = 'border-box';
-  reviewPanelEl.style.boxShadow = '0 8px 24px rgba(0,0,0,0.18)';
+  reviewPanelEl.style.boxShadow = 'var(--panel-shadow)';
   reviewPanelEl.style.zIndex = '5';
   reviewPanelEl.style.display = 'flex';
   reviewPanelEl.style.flexDirection = 'column';
@@ -1066,8 +1068,8 @@ function ensureReviewUI() {
     btn.style.fontSize = '15px';
     btn.style.fontWeight = '700';
     btn.style.cursor = 'pointer';
-    btn.style.background = '#d9e1f2';
-    btn.style.color = '#1f2430';
+    btn.style.background = 'var(--button-surface)';
+    btn.style.color = 'var(--text)';
     btn.style.boxSizing = 'border-box';
     btn.style.width = '100%';
   }
@@ -1469,7 +1471,7 @@ function renderTurnTimer() {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
 
-  turnTimerEl.style.background = 'rgba(255,255,255,0.06)';
+  turnTimerEl.style.background = 'var(--panel-2)';
   turnTimerEl.style.boxShadow = 'none';
   turnTimerEl.classList.remove('timer-critical');
 
@@ -1485,11 +1487,11 @@ function renderTurnTimer() {
   turnTimerEl.textContent = `${minutes}:${String(seconds).padStart(2, '0')}`;
   const color = state.turn;
   if (remainingMs <= 30000) {
-    turnTimerEl.style.background = color === 'red' ? 'rgba(217,67,67,0.55)' : 'rgba(47,116,221,0.55)';
-    turnTimerEl.style.boxShadow = `0 0 22px ${color === 'red' ? 'rgba(217,67,67,0.42)' : 'rgba(47,116,221,0.42)'}`;
+    turnTimerEl.style.background = color === 'red' ? 'rgba(226,99,99,0.55)' : 'rgba(87,143,219,0.55)';
+    turnTimerEl.style.boxShadow = `0 0 22px ${color === 'red' ? 'rgba(226,99,99,0.32)' : 'rgba(87,143,219,0.32)'}`;
     if (remainingMs <= 10000) turnTimerEl.classList.add('timer-critical');
   } else {
-    turnTimerEl.style.background = color === 'red' ? 'rgba(217,67,67,0.25)' : 'rgba(47,116,221,0.25)';
+    turnTimerEl.style.background = color === 'red' ? 'rgba(226,99,99,0.25)' : 'rgba(87,143,219,0.25)';
   }
 }
 
@@ -1604,25 +1606,7 @@ function localSwapSides() {
   localHistory.push(createSnapshotFromState(state));
   clearLocalPendingRequests();
 
-  state.pegs = state.pegs.map((p) => ({
-    ...p,
-    color: p.color === 'red' ? 'blue' : 'red',
-  }));
-
-  state.links = state.links.map((l) => ({
-    ...l,
-    color: l.color === 'red' ? 'blue' : 'red',
-  }));
-
-  if (state.lastMove) {
-    state.lastMove = {
-      ...state.lastMove,
-      color: state.lastMove.color === 'red' ? 'blue' : 'red',
-    };
-  }
-
-  state.turn = 'red';
-  state.canSwap = false;
+  applyPieRule(state);
 
   pushLocalTimeline();
   renderAll();

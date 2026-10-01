@@ -2,6 +2,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const { applyPieRule } = require('./public/pie-rule');
 
 const BOARD_SIZE = 24;
 const MAX_CHAT_MESSAGES = 100;
@@ -618,25 +619,7 @@ io.on('connection', (socket) => {
     clearPendingRequests(room);
     resetReview(room);
 
-    room.pegs = room.pegs.map((p) => ({
-      ...p,
-      color: p.color === 'red' ? 'blue' : 'red',
-    }));
-
-    room.links = room.links.map((l) => ({
-      ...l,
-      color: l.color === 'red' ? 'blue' : 'red',
-    }));
-
-    if (room.lastMove) {
-      room.lastMove = {
-        ...room.lastMove,
-        color: room.lastMove.color === 'red' ? 'blue' : 'red',
-      };
-    }
-
-    room.turn = 'red';
-    room.canSwap = false;
+    applyPieRule(room);
 
     pushTimeline(room);
     startTurnTimer(room);
